@@ -8,10 +8,21 @@ let projectionFlag = -1; // -1 for persp, 1 for orth
 let light1Flag = 1; // -1 for off, 1 for on
 let light2Flag = 1; // -1 for off, 1 for on
 
-// Globals
 let modelviewLocation, projectionLocation;
-let myShaderProgram;
+
 let P_persp, P_orth;
+
+let obj1Ibuffer;
+let obj1Vbuffer;
+let obj1Nbuffer;
+let obj1Program;
+let obj1Vpointer;
+
+let obj2Ibuffer;
+let obj2Vbuffer;
+let obj2Tbuffer;
+let obj2Program;
+let obj2Vpointer;
 
 function initGL() {
     let canvas = document.getElementById("gl-canvas");
@@ -23,36 +34,26 @@ function initGL() {
     gl.viewport(0, 0, 512, 512);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-    myShaderProgram = initShaders(gl, "vertex-shader", "fragment-shader");
-    gl.useProgram(myShaderProgram);
+    obj1Program = initShaders(gl, "vert1", "frag1");
+    gl.useProgram(obj1Program);
 
-
-    // The following block of code together with the 
-    // definitions in object.js are provided for diagnosis
-    // 
-    // For full credit, REPLACE THE FOLLOWING BLOCK with
-    // a block that loads the vertices and faces from the provided ply file
-    // You are encouraged to explore THREE.js by using ChatGPT
-    // to investigate how to load a PLY file and get
-    // access to the vertices and faces
-    //
-    vertices = getVertices(); // currently defined in object.js
-    indexList = getFaces();
-    numVertices = vertices.length;
-    numTriangles = indexList.length / 3;
+    // vertices = getVertices(); // currently defined in object.js
+    // indexList = getFaces();
+    // numVertices = vertices.length;
+    // numTriangles = indexList.length / 3;
     // End of block on reading vertices and faces that you should replace
 
-    let indexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexList), gl.STATIC_DRAW);
+    let obj1Ibuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj1Ibuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(obj1.indexList), gl.STATIC_DRAW);
 
-    let verticesBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
+    let obj1Vbuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, obj1Vbuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(obj1.vertices), gl.STATIC_DRAW);
 
-    let vertexPosition = gl.getAttribLocation(myShaderProgram, "vertexPosition");
-    gl.vertexAttribPointer(vertexPosition, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vertexPosition);
+    let obj1Vpointer = gl.getAttribLocation(obj1Program, "vertexPosition");
+    gl.vertexAttribPointer(obj1Vpointer, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(obj1Vpointer);
 
     // Insert your code here
 
@@ -168,8 +169,8 @@ function initGL() {
         0.0
     ];
 
-    modelviewLocation = gl.getUniformLocation(myShaderProgram, "modelview");
-    projectionLocation = gl.getUniformLocation(myShaderProgram, "projection");
+    modelviewLocation = gl.getUniformLocation(obj1Program, "modelview");
+    projectionLocation = gl.getUniformLocation(obj1Program, "projection");
 
     gl.uniformMatrix4fv(modelviewLocation, false, M);
 
@@ -183,35 +184,35 @@ function initGL() {
     // Normals for lighting calculations
 
     // Create face normals using faces and vertices by calling getFaceNormals
-    let faceNormals = getFaceNormals(vertices, indexList, numTriangles);
+    let obj1FaceNormals = getFaceNormals(obj1.vertices, obj1.indexList, obj1.indexList.length / 3);
 
     // Create vertex normals using faces, vertices, and face normals
     // by calling getVertexNormals
-    let vertexNormals = getVertexNormals(vertices, indexList, faceNormals, numVertices, numTriangles);
+    let obj1VertexNormals = getVertexNormals(obj1.vertices, obj1.indexList, obj1FaceNormals, obj1.vertices.length, obj1.indexList.length / 3);
 
     // Following code sets up the normals buffer
-    let normalsBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertexNormals), gl.STATIC_DRAW);
+    obj1Nbuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, obj1Nbuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(obj1VertexNormals), gl.STATIC_DRAW);
 
-    let vertexNormal = gl.getAttribLocation(myShaderProgram, "vertexNormal");
-    gl.vertexAttribPointer(vertexNormal, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vertexNormal);
+    let obj1VertexNormal = gl.getAttribLocation(obj1Program, "vertexNormal");
+    gl.vertexAttribPointer(obj1VertexNormal, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(obj1VertexNormal);
 
     // Set up coefficients for the object
     // (ambient coefficients, diffuse coefficients,
     // specular coefficients, shininess)
     // and send them as uniform variables to the shader program
-    let ka = vec3(.9, .9, .9);
-    let kd = vec3(.9, .9, .9);
-    let ks = vec3(1.0, 1.0, 1.0);
-    let shininess = 5.0;
+    let obj1_ka = vec3(.9, .9, .9);
+    let obj1_kd = vec3(.9, .9, .9);
+    let obj1_ks = vec3(1.0, 1.0, 1.0);
+    let obj1_shininess = 5.0;
 
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "ka"), ka[0], ka[1], ka[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "kd"), kd[0], kd[1], kd[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "ks"), ks[0], ks[1], ks[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "ka"), obj1_ka[0], obj1_ka[1], obj1_ka[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "kd"), obj1_kd[0], obj1_kd[1], obj1_kd[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "ks"), obj1_ks[0], obj1_ks[1], obj1_ks[2]);
 
-    gl.uniform1f(gl.getUniformLocation(myShaderProgram, "shininess"), shininess);
+    gl.uniform1f(gl.getUniformLocation(obj1Program, "shininess"), obj1_shininess);
 
     // Set up light 1: directional light
 
@@ -242,7 +243,7 @@ function initGL() {
         1.0
     ];
 
-    let modelViewITLocation = gl.getUniformLocation(myShaderProgram, "modelviewIT");
+    let modelViewITLocation = gl.getUniformLocation(obj1Program, "modelviewIT");
     gl.uniformMatrix4fv(modelViewITLocation, false, MIT);
 
     // Finally, draw
@@ -252,7 +253,7 @@ function initGL() {
 
 function drawObject() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 3 * numTriangles, gl.UNSIGNED_SHORT, 0)
+    gl.drawElements(gl.TRIANGLES, 3 * (obj1.indexList.length / 3), gl.UNSIGNED_SHORT, 0)
 };
 
 
@@ -289,10 +290,10 @@ function sendLight1Uniforms() {
         l1_Is = vec3(0.0, 0.0, 0.0);
     }
     
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l1_Ia"), l1_Ia[0], l1_Ia[1], l1_Ia[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l1_Id"), l1_Id[0], l1_Id[1], l1_Id[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l1_Is"), l1_Is[0], l1_Is[1], l1_Is[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l1_dir"), l1_dir[0], l1_dir[1], l1_dir[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l1_Ia"), l1_Ia[0], l1_Ia[1], l1_Ia[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l1_Id"), l1_Id[0], l1_Id[1], l1_Id[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l1_Is"), l1_Is[0], l1_Is[1], l1_Is[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l1_dir"), l1_dir[0], l1_dir[1], l1_dir[2]);
 }
 
 function sendLight2Uniforms() {
@@ -311,10 +312,10 @@ function sendLight2Uniforms() {
     }
     
 
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l2_Ia"), l2_Ia[0], l2_Ia[1], l2_Ia[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l2_Id"), l2_Id[0], l2_Id[1], l2_Id[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l2_Is"), l2_Is[0], l2_Is[1], l2_Is[2]);
-    gl.uniform3f(gl.getUniformLocation(myShaderProgram, "l2_p0"), l2_p0[0], l2_p0[1], l2_p0[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l2_Ia"), l2_Ia[0], l2_Ia[1], l2_Ia[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l2_Id"), l2_Id[0], l2_Id[1], l2_Id[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l2_Is"), l2_Is[0], l2_Is[1], l2_Is[2]);
+    gl.uniform3f(gl.getUniformLocation(obj1Program, "l2_p0"), l2_p0[0], l2_p0[1], l2_p0[2]);
 }
 
 function sendProjectionUniform() {
