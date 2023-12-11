@@ -55,15 +55,13 @@ function initGL() {
     gl.vertexAttribPointer(obj1Vpointer, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(obj1Vpointer);
 
-    // Insert your code here
-
     // =======================================================
     // Step 1: Position the camera using the look at method
     // =======================================================
 
     // Define eye (use vec3 in MV.js)
 
-    let e = vec3(6.0, 12.0, -16.0);
+    let e = vec3(6.0, 5.0, -16.0);
 
     // Define at point (use vec3 in MV.js)
 
@@ -110,23 +108,25 @@ function initGL() {
     // Step 2: Set up orthographic and perspective projections
     // =======================================================
 
+    let margin = 2.0;
+
     // Define left plane
-    let left = -2.5;
+    let left = -margin;
 
     // Define right plane
-    let right = 2.5;
+    let right = margin;
 
     // Define top plane
-    let top_ = 2.5;
+    let top_ = margin;
 
     // Define bottom plane
-    let bottom = -2.5;
+    let bottom = -margin;
 
     // Define near plane
-    let near = 20.0 - 2.5;
+    let near = 15.0 - margin;
 
     // Define far plane
-    let far = 20.0 + 2.5;
+    let far = 20.0 + margin;
 
     // Set up orthographic projection matrix P_orth using above planes
     P_orth = [
@@ -279,8 +279,8 @@ function sendLight1Uniforms() {
     let l1_dir, l1_Ia, l1_Id, l1_Is;
 
     if(light1Flag === 1) {
-        l1_dir = vec3(0.9, 0.9, 0.2);
-        l1_Ia = vec3(0.0, 0.0, 0.0);
+        l1_dir = vec3(0.1, 0.1, 0.1);
+        l1_Ia = vec3(0.1, 0.1, 0.1);
         l1_Id = vec3(0.5, 0.1, 0.1);
         l1_Is = vec3(0.5, 0.1, 0.1);
     } else {
@@ -300,10 +300,10 @@ function sendLight2Uniforms() {
     let l2_p0, l2_Ia, l2_Id, l2_Is;
 
     if(light2Flag === 1) {
-        l2_p0 = vec3(0.0, 0.0, 0.0);
+        l2_p0 = vec3(10.0, -100.0, -100.0);
         l2_Ia = vec3(0.1, 0.1, 0.1);
-        l2_Id = vec3(0.1, 0.1, 0.1);
-        l2_Is = vec3(0.1, 0.1, 0.1);
+        l2_Id = vec3(0.6, 0.9, 0.9);
+        l2_Is = vec3(0.2, 0.2, 0.2);
     } else {
         l2_p0 = vec3(0.0, 0.0, 0.0);
         l2_Ia = vec3(0.0, 0.0, 0.0);
