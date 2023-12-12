@@ -19,4 +19,4 @@ This is a Christmas scene where the user can move a present around on a table us
 
 All the objects included are textured and have a specular reflection. The perspective matrices are calculated in project2.html.
 
-The table object and candle objects were created using blender.
+The candle object were created using blender, and the vertices and index list for that object were created using Blender's Python library.
