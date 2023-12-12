@@ -1,6 +1,6 @@
 class Object {
 
-  constructor(gl, points, offset_x, offset_y) {
+  constructor(gl, points, offset_x, offset_y, offset_z) {
     this.gl = gl;
     this.points = points;
     this.program = initShaders(this.gl, "vertex", "fragment");
@@ -34,6 +34,7 @@ class Object {
     this.gamma = 0.0;
     this.offset_x = offset_x;
     this.offset_y = offset_y;
+    this.offset_z = offset_z;
     this.scale_x = 2.0;
     this.scale_y = 2.0;
   }
@@ -100,7 +101,7 @@ class Object {
       0, 0, 1, 0,
       0, 0, 0, 1
     ];
-    let Transform = [this.offset_x, this.offset_y, 0.0, 1.0];
+    let Transform = [this.offset_x, this.offset_y, this.offset_z, 1.0];
     let Scale = [
       this.scale_x, 0.0, 0.0, 0.0,
       0.0, this.scale_y, 0.0, 0.0,
@@ -130,6 +131,7 @@ class Object {
       this.gl.activeTexture(this.gl.TEXTURE0);
       this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
       this.gl.uniform1i(this.gl.getUniformLocation(this.program, "texMap0"), 0);
+      this.texturing();
     }
 
     this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.Ibuffer);
@@ -162,14 +164,14 @@ class Object {
   }
 
   texturing(texture) {
-    this.texture = texture;
+    if (texture) this.texture = texture;
     this.gl.useProgram(this.program);
-    var textureVertexbuffer2 = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER,textureVertexbuffer2);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(this.points.texCoords), gl.STATIC_DRAW);
-    var textureCoordinate2 = gl.getAttribLocation(this.program,"textureCoordinate");
-    gl.vertexAttribPointer(textureCoordinate2, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(textureCoordinate2);
+    this.textureVertexbuffer = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.textureVertexbuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, flatten(this.points.texCoords), this.gl.STATIC_DRAW);
+    this.textureCoordinate = this.gl.getAttribLocation(this.program,"textureCoordinate");
+    this.gl.vertexAttribPointer(this.textureCoordinate, 2, this.gl.FLOAT, false, 0, 0);
+    this.gl.enableVertexAttribArray(this.textureCoordinate);
   }
 
   getFaceNormals(vertices, indexList, numTriangles) {

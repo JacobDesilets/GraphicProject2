@@ -5,8 +5,8 @@ var canvas;
 var table;
 var present;
 var candle;
-var light1;
-var light2;
+var overheadLight;
+var candleLight;
 
 let woodTextureUrl = "https://media.istockphoto.com/id/484096068/photo/wooden-texture-background.webp?b=1&s=170667a&w=0&k=20&c=RWLEm-1NkqPzEgrX0zRid7WHtclBQBmI4RQZlouc02g=";
 let giftTextureUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRfMkikB0yqsbphfbJ6vccDDYYONa1j5vqYPw&usqp=CAU";
@@ -14,13 +14,13 @@ let candleTextureUrl = "https://media.istockphoto.com/id/481266709/photo/wax-tex
 
 function setCanvas() {
   canvas = document.getElementById("gl-canvas");
-  var width = Math.min(window.innerWidth, window.innerHeight) - 50;
+  var width = Math.min(window.innerWidth, window.innerHeight) - 100;
   if (canvas.width == width) return;
   canvas.width  = width;
   canvas.height = width;
   gl = WebGLUtils.setupWebGL(canvas);
   gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.clearColor(0.0, 0.2, 0.0, 1.0);
   gl.enable(gl.DEPTH_TEST);
   if (!gl) alert("WebGL 2.0 isn't available");
   return gl;
@@ -28,9 +28,9 @@ function setCanvas() {
 
 function initGL() {
   setCanvas();
-  table = new Object(gl, obj1, 0.0, 0.0);
-  present = new Object(gl, obj2, 0.0, -0.13);
-  candle = new Object(gl, obj3, 0.0, 0.13)
+  table = new Object(gl, obj1, 0.0, 0.0, 0.0);
+  present = new Object(gl, obj2, 1.3, -0.10, 0.0);
+  candle = new Object(gl, obj3, -1.3, 0.13, 0.8)
 
   // Define eye (use vec3 in MV.js)
   let e = vec3(6.0, 5.0, -16.0);
@@ -92,7 +92,7 @@ function initGL() {
   present.texturing(createTexture(giftTextureUrl));
   candle.texturing(createTexture(candleTextureUrl));
 
-  light1 = new Light(
+  overheadLight = new Light(
     "l1",
     vec3(0.1, 0.1, 0.1),
     vec3(1.0, 1.0, 1.0),
@@ -100,17 +100,35 @@ function initGL() {
     vec3(0.0, -100.0, 0.0) // Directional
   );
 
-  light2 = new Light(
+  candleLight = new Light(
     "l2",
     vec3(0.1, 0.1, 0.1),
-    vec3(1.0, 1.0, 1.0),
+    vec3(0.75, 0.5, 0.5),
     vec3(0.1, 0.1, 0.1),
-    vec3(0, -1, 0)  // Point
+    vec3(0, -1, -2)  // Point
   );
 
   drawObjects();
   keyHandlers();
+  flickerCandle();
 };
+
+function flickerCandle() {
+  let delay = 10;
+  amount = Math.random()/10.0 - 0.05;
+  for (let i = 0; i < 3; ++i) {
+    if (candleLight.Id_[i] + amount > 0.05 && candleLight.Id_[i] + amount < 1) {
+      candleLight.Id_[i] += amount;
+    }
+    if (candleLight.Ia_[i] + amount > 0.1 && candleLight.Ia_[i] + amount < 0.2) {
+      candleLight.Ia_[i] += amount;
+    }
+  }
+  candleLight.update([table, present, candle]);
+  setTimeout(
+    function (){requestAnimationFrame(flickerCandle);}, delay
+  );
+}
 
 
 function keyHandlers() {
@@ -118,20 +136,26 @@ function keyHandlers() {
     window.onkeydown = function(event) {
         var key = String.fromCharCode(event.keyCode);
         switch(key) {
+          case 'W':
+            moveGift(0, 1, 0);
+            break;
+          case 'S':
+            moveGift(0, -1, 0);
+            break;
+          case 'A':
+            moveGift(-1, 0, 0);
+            break;
+          case 'D':
+            moveGift(1, 0, 0);
+            break;
           case 'X':
             rotateScene();
             break;
-          case 'W':
-            moveCandle(0, 1);
+          case 'Z':
+            toggleOverheadLight(1, 0, 0);
             break;
-          case 'S':
-            moveCandle(0, -1);
-            break;
-          case 'A':
-            moveCandle(-1, 0);
-            break;
-          case 'D':
-            moveCandle(1, 0);
+          case 'C':
+            toggleCandleLight(1, 0, 0);
             break;
         }
     };
@@ -163,20 +187,20 @@ function drawObjects() {
   present.draw();
   candle.draw();
   
-  light1.update([table, present, candle]);
-  light2.update([table, present, candle]);
+  overheadLight.update([table, present, candle]);
+  candleLight.update([table, present, candle]);
 
   requestAnimFrame(drawObjects);
 };
 
-function toggleLight1() {
-  light1.toggle();
-  light1.update([table, present, candle]);
+function toggleOverheadLight() {
+  overheadLight.toggle();
+  overheadLight.update([table, present, candle]);
 };
 
-function toggleLight2() {
-  light2.toggle();
-  light2.update([table, present, candle]);
+function toggleCandleLight() {
+  candleLight.toggle();
+  candleLight.update([table, present, candle]);
 };
 
 function rotateScene() {
@@ -188,19 +212,27 @@ function rotateScene() {
   candle.transform();
 }
 
-function moveCandle(dx, dy) {
-  dy /= 4.0;
-  dx /= 4.0;
-  if (candle.offset_y <= 0.25 && dy < 0) { 
+function moveGift(dx, dy, dz) {
+  // reduce speed
+  dy /= 8.0;
+  dx /= 8.0;
+  dz /= 8.0;
+  // don't move too far
+  if (present.offset_y <= -0.10 && dy < 0) { 
+    dy = 0;
+    present.offset_y = -0.10
+  } else if (present.offset_y >= 1.5 && dy > 0) {
     dy = 0;
   }
-  candle.offset_y += dy;
-  light2.p0_[1] -= dy;
-
-  candle.offset_x += dx;
-  light2.p0_[0] -= dx;
-
-  candle.transform();
-  light2.update([table, present, candle]);
+  if (present.offset_x <= -1.5 && dx < 0 ||
+      present.offset_x >= 2.0 && dx > 0) { 
+    dx = 0;
+  }
+  present.offset_y += dy;
+  present.offset_x += dx;
+  present.offset_z += dz;
+  present.transform();
+  overheadLight.update([table, present, candle]);
+  candleLight.update([table, present, candle]);
 }
 
