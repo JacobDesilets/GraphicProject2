@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+  <script id="vertex" type="x-shader/x-vertex">
+
+    precision mediump float;
+    attribute vec4 vertexPosition;
+    attribute vec3 vertexNormal;
+
+    attribute vec2 textureCoordinate;
+    varying vec2 fTextureCoordinate;
+    
+    // Set up uniforms for modelview, modelview inverse transpose, and projections
+    uniform mat4 modelview;
+    uniform mat4 modelviewIT;
+    uniform mat4 projection;
+    
+    // light 1 (directional)
+    uniform vec3 l1_p0;
+    uniform vec3 l1_Ia, l1_Id, l1_Is;
+
+    // light 2 (point)
+    uniform vec3 l2_p0;
+    uniform vec3 l2_Ia, l2_Id, l2_Is;
+
+    // varying variables
+    varying vec3 vertexNormalTransformed, view, i1, i2;
+    varying vec3 l1_Ia_vtx, l1_Id_vtx, l1_Is_vtx;
+    varying vec3 l2_Ia_vtx, l2_Id_vtx, l2_Is_vtx;
+
+    // transformations
+    uniform mat4 Rx;
+    uniform mat4 Ry;
+    uniform mat4 Rz;
+    uniform mat4 Scale;
+    uniform vec4 Transform;
+
+    void main() {
+      gl_PointSize = 1.0;
+
+      vec4 vertexPositionT = vertexPosition;
+
+      vec4 vertexNormal4 = vec4(vertexNormal.x, vertexNormal.y, vertexNormal.z, 1.0);
+      vec4 vertexNormalTransformed4 = modelviewIT * vertexNormal4;
+      vertexNormalTransformed = normalize(vertexNormalTransformed4.xyz);
+      
+      // First light (directional)
+      l1_Ia_vtx = l1_Ia;
+      l1_Id_vtx = l1_Id;
+      l1_Is_vtx = l1_Is;
+      
+      // Second light (point)
+      vec4 vertexPositionTransformed = modelview * vertexPositionT;
+      vec3 vertexPT3 = vertexPositionTransformed.xyz;
+      vec4 l2_p04 = vec4(l2_p0.x, l2_p0.y, l2_p0.z, 1.0);
+      vec4 l2_p0T4  = modelview * l2_p04;
+      vec3 l2_p0T3  = l2_p0T4.xyz;
+
+      float a = 0.0001;
+      float b = 0.005;
+      float c = 0.5;
+
+      float distance = length(vertexPT3 - l2_p0T3);
+      float atten = a * (distance * distance) + b * distance + c;
+      l2_Ia_vtx = l2_Ia / atten;
+      l2_Id_vtx = l2_Id / atten;
+      l2_Is_vtx = l2_Is / atten;
+      
+      // Compute the vector 'view' for the direction of the viewer
+      view = normalize(vec3(0.0, 0.0, 0.0) - vertexPT3);
+
+      // Compute the vector 'i' against the direction of incidence
+      i1 = normalize(l1_p0);
+      i2 = normalize(l2_p0T3 - vertexPT3);
+      
+      vertexPositionT += Transform;
+      vertexPositionT *= Rx*Ry*Rz;
+      vertexPositionT *= Scale;
+      gl_Position = projection * modelview * vertexPositionT;
+
+      
+      fTextureCoordinate = textureCoordinate;
+    }
+
+  </script>
+
+    <script id="fragment" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform vec3 ka, kd, ks;
+    uniform float shininess;
+
+    varying vec3 vertexNormalTransformed, view, i1, i2;
+    varying vec3 l1_Ia_vtx, l1_Id_vtx, l1_Is_vtx;
+    varying vec3 l2_Ia_vtx, l2_Id_vtx, l2_Is_vtx;
+
+    varying vec2 fTextureCoordinate;
+    uniform sampler2D texMap0;
+
+    void main() {
+      // Normalize the varying variables
+      vec3 nrenormed = normalize(vertexNormalTransformed);
+      vec3 viewrenormed = normalize(view);
+      vec3 irenormed1 = normalize(i1);
+      vec3 irenormed2 = normalize(i2);
+      
+      // Compute the ambient reflection for the first light source
+      vec3 Ra, Rd, Rs;
+      Ra.r = ka.r * l1_Ia_vtx.r;
+      Ra.g = ka.g * l1_Ia_vtx.g;
+      Ra.b = ka.b * l1_Ia_vtx.b;
+      
+      // Compute the diffuse reflection for the first light source
+      float costheta = dot( irenormed1, nrenormed );
+      Rd.r = kd.r * l1_Id_vtx.r * max( costheta, 0.0 );
+      Rd.g = kd.g * l1_Id_vtx.g * max( costheta, 0.0 );
+      Rd.b = kd.b * l1_Id_vtx.b * max( costheta, 0.0 );
+      
+      // Compute the specular reflection for the first light source
+      if ( costheta > 0.0 ) {
+        vec3 r = 2.0 * costheta * nrenormed - irenormed1;
+        float cosphi = dot( r, viewrenormed );
+        float shine = pow( max( cosphi, 0.0 ), shininess );
+        Rs.r = ks.r * l1_Is_vtx.r * shine;
+        Rs.g = ks.g * l1_Is_vtx.g * shine;
+        Rs.b = ks.b * l1_Is_vtx.b * shine;
+      } else {
+        Rs.r = .0;
+        Rs.g = .0;
+        Rs.b = .0;
+      }
+      
+      // Compute the ambient reflection for the second light source
+      Ra.r += ka.r * l2_Ia_vtx.r;
+      Ra.g += ka.g * l2_Ia_vtx.g;
+      Ra.b += ka.b * l2_Ia_vtx.b;
+      
+      // Compute the diffuse reflection for the second light source
+      costheta = dot( irenormed2, nrenormed );
+      Rd.r += kd.r * l2_Id_vtx.r * max( costheta, 0.0 );
+      Rd.g += kd.g * l2_Id_vtx.g * max( costheta, 0.0 );
+      Rd.b += kd.b * l2_Id_vtx.b * max( costheta, 0.0 );
+      
+      // Compute the specular reflection for the second light source
+      if ( costheta > 0.0 ) {
+        vec3 r = 2.0 * costheta * nrenormed - irenormed2;
+        float cosphi = dot( r, viewrenormed );
+        float shine = pow( max( cosphi, 0.0 ), shininess );
+        Rs.r += ks.r * l2_Is_vtx.r * shine;
+        Rs.g += ks.g * l2_Is_vtx.g * shine;
+        Rs.b += ks.b * l2_Is_vtx.b * shine;
+      } else {
+        Rs.r += .0;
+        Rs.g += .0;
+        Rs.b += .0;
+      }
+      
+      // Calculate the total reflected light by summing
+      // the ambient, diffuse, and specular reflections for
+      // all lights that are on.    
+      vec3 R = Ra + Rd + Rs;
+      
+      vec4 texColor = texture2D(texMap0, fTextureCoordinate);
+      gl_FragColor = vec4( R.r * texColor.r, R.g * texColor.b, R.b * texColor.g, 1.0 );
+    }
+
+  </script>
+  <script type="text/javascript" src="../Common/webgl-utils.js"></script>
+  <script type="text/javascript" src="../Common/initShaders.js"></script>
+  <script type="text/javascript" src="../Common/MV.js"></script>
+  <script type="text/javascript" src="points.js"></script>
+  <script type="text/javascript" src="light.js"></script>
+  <script type="text/javascript" src="object.js"></script>
+  <script type="text/javascript" src="project2.js"></script>
+</head>
+
+<body onload="initGL()">
+  <div style="display:flex; flex-direction: row; gap:1rem;">
+    <canvas id="gl-canvas" height="800" width="800">
+    </canvas>
+    <div>
+      <h2>CS452 Project 2</h2>
+      <button onclick="toggleLight1();">Toggle directional light</button>
+      <button onclick="toggleLight2();">Toggle point light</button>
+    </div>
+  </div>
+</body>
+</html>
